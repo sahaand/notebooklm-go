@@ -1,0 +1,386 @@
+// Package notebooklm provides a Go client for the unofficial NotebookLM API.
+// It reverse-engineers Google's internal batchexecute protocol to provide
+// programmatic access to NotebookLM features.
+package notebooklm
+
+import (
+	"time"
+
+	"github.com/saeedata/notebooklm-go/rpc"
+)
+
+// SourceType represents the type of a source added to a notebook.
+type SourceType string
+
+const (
+	SourceTypeGoogleDocs        SourceType = "GOOGLE_DOCS"
+	SourceTypeGoogleSlides      SourceType = "GOOGLE_SLIDES"
+	SourceTypeGoogleSpreadsheet SourceType = "GOOGLE_SPREADSHEET"
+	SourceTypePDF               SourceType = "PDF"
+	SourceTypePastedText        SourceType = "PASTED_TEXT"
+	SourceTypeWebPage           SourceType = "WEB_PAGE"
+	SourceTypeGoogleDriveAudio  SourceType = "GOOGLE_DRIVE_AUDIO"
+	SourceTypeGoogleDriveVideo  SourceType = "GOOGLE_DRIVE_VIDEO"
+	SourceTypeYouTube           SourceType = "YOUTUBE"
+	SourceTypeMarkdown          SourceType = "MARKDOWN"
+	SourceTypeDocx              SourceType = "DOCX"
+	SourceTypeCSV               SourceType = "CSV"
+	SourceTypeImage             SourceType = "IMAGE"
+	SourceTypeMedia             SourceType = "MEDIA"
+	SourceTypeUnknown           SourceType = "UNKNOWN"
+)
+
+// ArtifactKind represents the high-level type of an artifact.
+type ArtifactKind string
+
+const (
+	ArtifactKindAudio     ArtifactKind = "AUDIO"
+	ArtifactKindVideo     ArtifactKind = "VIDEO"
+	ArtifactKindReport    ArtifactKind = "REPORT"
+	ArtifactKindQuiz      ArtifactKind = "QUIZ"
+	ArtifactKindFlashcards ArtifactKind = "FLASHCARDS"
+	ArtifactKindMindMap   ArtifactKind = "MIND_MAP"
+	ArtifactKindInfographic ArtifactKind = "INFOGRAPHIC"
+	ArtifactKindSlideDeck ArtifactKind = "SLIDE_DECK"
+	ArtifactKindDataTable ArtifactKind = "DATA_TABLE"
+	ArtifactKindUnknown   ArtifactKind = "UNKNOWN"
+)
+
+// ChatMode represents predefined chat configurations.
+type ChatMode string
+
+const (
+	ChatModeDefault       ChatMode = "DEFAULT"
+	ChatModeLearningGuide ChatMode = "LEARNING_GUIDE"
+	ChatModeConcise       ChatMode = "CONCISE"
+	ChatModeDetailed      ChatMode = "DETAILED"
+)
+
+// Notebook represents a NotebookLM notebook.
+type Notebook struct {
+	ID           string    `json:"id"`
+	Title        string    `json:"title"`
+	CreatedAt    time.Time `json:"created_at"`
+	SourcesCount int       `json:"sources_count"`
+	IsOwner      bool      `json:"is_owner"`
+}
+
+// NotebookFromAPIResponse parses a notebook from the raw API response array.
+func NotebookFromAPIResponse(data []any) Notebook {
+	nb := Notebook{}
+	if len(data) == 0 {
+		return nb
+	}
+	if id, ok := data[0].(string); ok {
+		nb.ID = id
+	}
+	// Title is typically at index 1 in a nested structure
+	if titleArr, ok := data[1].([]any); ok && len(titleArr) > 0 {
+		if title, ok := titleArr[0].(string); ok {
+			nb.Title = title
+		}
+	} else if title, ok := data[1].(string); ok {
+		nb.Title = title
+	}
+	return nb
+}
+
+// SuggestedTopic represents an AI-suggested conversation topic.
+type SuggestedTopic struct {
+	Question string `json:"question"`
+	Prompt   string `json:"prompt"`
+}
+
+// NotebookDescription represents an AI-generated summary with suggested topics.
+type NotebookDescription struct {
+	Summary         string           `json:"summary"`
+	SuggestedTopics []SuggestedTopic `json:"suggested_topics"`
+}
+
+// SourceSummary is a lightweight source representation for metadata export.
+type SourceSummary struct {
+	Kind  SourceType `json:"kind"`
+	Title string     `json:"title"`
+	URL   string     `json:"url,omitempty"`
+}
+
+// NotebookMetadata combines notebook details with simplified source list.
+type NotebookMetadata struct {
+	Notebook Notebook        `json:"notebook"`
+	Sources  []SourceSummary `json:"sources"`
+}
+
+// Source represents a source added to a notebook.
+type Source struct {
+	ID         string       `json:"id"`
+	NotebookID string       `json:"notebook_id"`
+	Title      string       `json:"title"`
+	URL        string       `json:"url,omitempty"`
+	TypeCode   int          `json:"type_code"`
+	CreatedAt  time.Time    `json:"created_at"`
+	Status     rpc.SourceStatus `json:"status"`
+}
+
+// Kind returns the SourceType enum for this source.
+func (s *Source) Kind() SourceType {
+	typeMap := map[int]SourceType{
+		1: SourceTypeGoogleDocs,
+		2: SourceTypeWebPage,
+		3: SourceTypePDF,
+		4: SourceTypePastedText,
+		5: SourceTypeYouTube,
+		6: SourceTypeGoogleSlides,
+		7: SourceTypeGoogleSpreadsheet,
+	}
+	if t, ok := typeMap[s.TypeCode]; ok {
+		return t
+	}
+	return SourceTypeUnknown
+}
+
+// IsReady returns true if the source has finished processing.
+func (s *Source) IsReady() bool { return s.Status == rpc.SourceReady }
+
+// IsProcessing returns true if the source is still being processed.
+func (s *Source) IsProcessing() bool {
+	return s.Status == rpc.SourceProcessing || s.Status == rpc.SourcePreparing
+}
+
+// IsError returns true if source processing failed.
+func (s *Source) IsError() bool { return s.Status == rpc.SourceError }
+
+// SourceFromAPIResponse parses a source from the raw API response.
+func SourceFromAPIResponse(data []any, notebookID string) Source {
+	src := Source{NotebookID: notebookID}
+	if len(data) == 0 {
+		return src
+	}
+	if id, ok := data[0].(string); ok {
+		src.ID = id
+	}
+	return src
+}
+
+// Artifact represents an AI-generated artifact (audio, video, report, etc.).
+type Artifact struct {
+	ID           string           `json:"id"`
+	Title        string           `json:"title"`
+	TypeCode     rpc.ArtifactTypeCode `json:"type_code"`
+	Status       rpc.ArtifactStatus `json:"status"`
+	CreatedAt    time.Time        `json:"created_at"`
+	URL          string           `json:"url,omitempty"`
+	Variant      int              `json:"variant,omitempty"`
+}
+
+// Kind returns the high-level ArtifactKind for this artifact.
+func (a *Artifact) Kind() ArtifactKind {
+	switch a.TypeCode {
+	case rpc.ArtifactTypeAudio:
+		return ArtifactKindAudio
+	case rpc.ArtifactTypeVideo:
+		return ArtifactKindVideo
+	case rpc.ArtifactTypeReport:
+		return ArtifactKindReport
+	case rpc.ArtifactTypeQuiz:
+		if a.Variant == 2 {
+			return ArtifactKindFlashcards
+		}
+		return ArtifactKindQuiz
+	case rpc.ArtifactTypeMindMap:
+		return ArtifactKindMindMap
+	case rpc.ArtifactTypeInfographic:
+		return ArtifactKindInfographic
+	case rpc.ArtifactTypeSlideDeck:
+		return ArtifactKindSlideDeck
+	case rpc.ArtifactTypeDataTable:
+		return ArtifactKindDataTable
+	}
+	return ArtifactKindUnknown
+}
+
+// IsCompleted returns true if the artifact has finished generating.
+func (a *Artifact) IsCompleted() bool { return a.Status == rpc.ArtifactCompleted }
+
+// IsProcessing returns true if the artifact is still generating.
+func (a *Artifact) IsProcessing() bool { return a.Status == rpc.ArtifactProcessing }
+
+// IsPending returns true if the artifact is queued.
+func (a *Artifact) IsPending() bool { return a.Status == rpc.ArtifactPending }
+
+// IsFailed returns true if artifact generation failed.
+func (a *Artifact) IsFailed() bool { return a.Status == rpc.ArtifactFailed }
+
+// ArtifactFromAPIResponse parses an artifact from the raw API response.
+func ArtifactFromAPIResponse(data []any) *Artifact {
+	if len(data) == 0 {
+		return nil
+	}
+	art := &Artifact{}
+	if id, ok := data[0].(string); ok {
+		art.ID = id
+	}
+	if len(data) > 1 {
+		if title, ok := data[1].(string); ok {
+			art.Title = title
+		}
+	}
+	if len(data) > 2 {
+		if tc, ok := data[2].(float64); ok {
+			art.TypeCode = rpc.ArtifactTypeCode(int(tc))
+		}
+	}
+	if len(data) > 4 {
+		if st, ok := data[4].(float64); ok {
+			art.Status = rpc.ArtifactStatus(int(st))
+		}
+	}
+	if len(data) > 5 {
+		if u, ok := data[5].(string); ok {
+			art.URL = u
+		}
+	}
+	return art
+}
+
+// GenerationStatus represents the status of an artifact generation task.
+type GenerationStatus struct {
+	TaskID    string `json:"task_id"`
+	Status    string `json:"status"`
+	URL       string `json:"url,omitempty"`
+	Error     string `json:"error,omitempty"`
+	ErrorCode any    `json:"error_code,omitempty"`
+}
+
+// IsComplete returns true if generation finished successfully.
+func (g *GenerationStatus) IsComplete() bool { return g.Status == "completed" }
+
+// IsFailed returns true if generation failed.
+func (g *GenerationStatus) IsFailed() bool { return g.Status == "failed" }
+
+// IsPending returns true if generation is queued.
+func (g *GenerationStatus) IsPending() bool { return g.Status == "pending" }
+
+// IsInProgress returns true if generation is running.
+func (g *GenerationStatus) IsInProgress() bool { return g.Status == "in_progress" }
+
+// ConversationTurn represents a single Q&A pair in a conversation.
+type ConversationTurn struct {
+	Query      string `json:"query"`
+	Answer     string `json:"answer"`
+	TurnNumber int    `json:"turn_number"`
+}
+
+// ChatReference represents a citation in a chat response.
+type ChatReference struct {
+	SourceID      string `json:"source_id"`
+	CitationNumber int   `json:"citation_number"`
+	CitedText     string `json:"cited_text"`
+	StartChar     int    `json:"start_char"`
+	EndChar       int    `json:"end_char"`
+	ChunkID       string `json:"chunk_id"`
+}
+
+// AskResult represents the result of a chat question.
+type AskResult struct {
+	Answer         string          `json:"answer"`
+	ConversationID string          `json:"conversation_id"`
+	TurnNumber     int             `json:"turn_number"`
+	IsFollowUp     bool            `json:"is_follow_up"`
+	References     []ChatReference `json:"references,omitempty"`
+}
+
+// Note represents a user note in a notebook.
+type Note struct {
+	ID         string    `json:"id"`
+	NotebookID string    `json:"notebook_id"`
+	Title      string    `json:"title"`
+	Content    string    `json:"content"`
+	CreatedAt  time.Time `json:"created_at"`
+}
+
+// SharedUser represents a user who has access to a notebook.
+type SharedUser struct {
+	Email       string          `json:"email"`
+	Permission  rpc.SharePermission `json:"permission"`
+	DisplayName string          `json:"display_name,omitempty"`
+	AvatarURL   string          `json:"avatar_url,omitempty"`
+}
+
+// ShareStatus represents the current sharing configuration of a notebook.
+type ShareStatus struct {
+	NotebookID  string          `json:"notebook_id"`
+	IsPublic    bool            `json:"is_public"`
+	Access      rpc.ShareAccess `json:"access"`
+	ViewLevel   rpc.ShareViewLevel `json:"view_level"`
+	SharedUsers []SharedUser    `json:"shared_users,omitempty"`
+	ShareURL    string          `json:"share_url,omitempty"`
+}
+
+// ReportSuggestion represents an AI-suggested report format.
+type ReportSuggestion struct {
+	Title         string `json:"title"`
+	Description   string `json:"description"`
+	Prompt        string `json:"prompt"`
+	AudienceLevel string `json:"audience_level,omitempty"`
+}
+
+// GenerateAudioOptions configures audio overview generation.
+type GenerateAudioOptions struct {
+	SourceIDs    []string
+	Language     string
+	Instructions string
+	Format       rpc.AudioFormat
+	Length       rpc.AudioLength
+}
+
+// GenerateVideoOptions configures video overview generation.
+type GenerateVideoOptions struct {
+	SourceIDs    []string
+	Language     string
+	Instructions string
+	Format       rpc.VideoFormat
+	Style        rpc.VideoStyle
+}
+
+// GenerateReportOptions configures report generation.
+type GenerateReportOptions struct {
+	Format            rpc.ReportFormat
+	SourceIDs         []string
+	Language          string
+	CustomPrompt      string
+	ExtraInstructions string
+}
+
+// GenerateQuizOptions configures quiz/flashcard generation.
+type GenerateQuizOptions struct {
+	SourceIDs  []string
+	Language   string
+	Quantity   rpc.QuizQuantity
+	Difficulty rpc.QuizDifficulty
+	Flashcards bool // true for flashcards, false for quiz
+}
+
+// GenerateInfographicOptions configures infographic generation.
+type GenerateInfographicOptions struct {
+	SourceIDs    []string
+	Language     string
+	Instructions string
+	Orientation  rpc.InfographicOrientation
+	DetailLevel  rpc.InfographicDetail
+	Style        rpc.InfographicStyle
+}
+
+// GenerateSlideDeckOptions configures slide deck generation.
+type GenerateSlideDeckOptions struct {
+	SourceIDs []string
+	Language  string
+	Format    rpc.SlideDeckFormat
+	Length    rpc.SlideDeckLength
+}
+
+// GenerateDataTableOptions configures data table generation.
+type GenerateDataTableOptions struct {
+	SourceIDs    []string
+	Language     string
+	Instructions string
+}
