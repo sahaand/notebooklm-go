@@ -298,3 +298,55 @@ func parseSource(data []any, notebookID string) Source {
 	}
 	return src
 }
+
+// GetGuide returns the AI-generated guide/summary for a source.
+func (s *SourcesAPI) GetGuide(ctx context.Context, notebookID, sourceID string) (string, error) {
+	params := []any{notebookID, sourceID}
+	result, err := s.client.RPCCall(ctx, rpc.GetSourceGuide, params, "/notebook/"+notebookID, false)
+	if err != nil {
+		return "", fmt.Errorf("get source guide %s: %w", sourceID, err)
+	}
+	arr, _ := result.([]any)
+	if len(arr) > 0 {
+		if guide, ok := arr[0].(string); ok {
+			return guide, nil
+		}
+	}
+	return "", nil
+}
+
+// CheckFreshness returns true if the source content is considered fresh/up-to-date.
+func (s *SourcesAPI) CheckFreshness(ctx context.Context, notebookID, sourceID string) (bool, error) {
+	params := []any{notebookID, sourceID}
+	result, err := s.client.RPCCall(ctx, rpc.CheckSourceFreshness, params, "/notebook/"+notebookID, true)
+	if err != nil {
+		return false, fmt.Errorf("check source freshness %s: %w", sourceID, err)
+	}
+	arr, _ := result.([]any)
+	if len(arr) > 0 {
+		if fresh, ok := arr[0].(bool); ok {
+			return fresh, nil
+		}
+		if code, ok := arr[0].(float64); ok {
+			return int(code) == 1, nil
+		}
+	}
+	return false, nil
+}
+
+// DiscoverSources finds related source URLs for a notebook.
+func (s *SourcesAPI) DiscoverSources(ctx context.Context, notebookID string) ([]string, error) {
+	params := []any{notebookID}
+	result, err := s.client.RPCCall(ctx, rpc.DiscoverSources, params, "/notebook/"+notebookID, true)
+	if err != nil {
+		return nil, fmt.Errorf("discover sources: %w", err)
+	}
+	arr, _ := result.([]any)
+	urls := make([]string, 0)
+	for _, item := range arr {
+		if u, ok := item.(string); ok {
+			urls = append(urls, u)
+		}
+	}
+	return urls, nil
+}

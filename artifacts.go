@@ -293,6 +293,108 @@ func (a *ArtifactsAPI) Download(ctx context.Context, notebookID, artifactID, des
 	return os.WriteFile(destPath, data, 0644)
 }
 
+// GetSuggestedReports returns AI-suggested report formats for a notebook.
+func (a *ArtifactsAPI) GetSuggestedReports(ctx context.Context, notebookID string) ([]ReportSuggestion, error) {
+	params := []any{notebookID}
+	result, err := a.client.RPCCall(ctx, rpc.GetSuggestedReports, params, "/notebook/"+notebookID, true)
+	if err != nil {
+		return nil, fmt.Errorf("get suggested reports: %w", err)
+	}
+	arr, _ := result.([]any)
+	suggestions := make([]ReportSuggestion, 0)
+	for _, item := range arr {
+		if data, ok := item.([]any); ok {
+			s := ReportSuggestion{}
+			if len(data) > 0 {
+				if title, ok := data[0].(string); ok {
+					s.Title = title
+				}
+			}
+			if len(data) > 1 {
+				if desc, ok := data[1].(string); ok {
+					s.Description = desc
+				}
+			}
+			if len(data) > 2 {
+				if prompt, ok := data[2].(string); ok {
+					s.Prompt = prompt
+				}
+			}
+			suggestions = append(suggestions, s)
+		}
+	}
+	return suggestions, nil
+}
+
+// ExportArtifact exports an artifact to Google Docs or Sheets and returns the URL.
+func (a *ArtifactsAPI) ExportArtifact(ctx context.Context, notebookID, artifactID string, exportType rpc.ExportType) (string, error) {
+	params := []any{notebookID, artifactID, int(exportType)}
+	result, err := a.client.RPCCall(ctx, rpc.ExportArtifact, params, "/notebook/"+notebookID, false)
+	if err != nil {
+		return "", fmt.Errorf("export artifact: %w", err)
+	}
+	arr, _ := result.([]any)
+	if len(arr) > 0 {
+		if u, ok := arr[0].(string); ok {
+			return u, nil
+		}
+	}
+	return "", nil
+}
+
+// ShareArtifact creates a shareable link for an artifact.
+func (a *ArtifactsAPI) ShareArtifact(ctx context.Context, notebookID, artifactID string) (string, error) {
+	params := []any{notebookID, artifactID}
+	result, err := a.client.RPCCall(ctx, rpc.ShareArtifact, params, "/notebook/"+notebookID, false)
+	if err != nil {
+		return "", fmt.Errorf("share artifact: %w", err)
+	}
+	arr, _ := result.([]any)
+	if len(arr) > 0 {
+		if u, ok := arr[0].(string); ok {
+			return u, nil
+		}
+	}
+	return "", nil
+}
+
+// GetInteractiveHTML returns the interactive HTML content for an artifact.
+func (a *ArtifactsAPI) GetInteractiveHTML(ctx context.Context, notebookID, artifactID string) (string, error) {
+	params := []any{notebookID, artifactID}
+	result, err := a.client.RPCCall(ctx, rpc.GetInteractiveHTML, params, "/notebook/"+notebookID, false)
+	if err != nil {
+		return "", fmt.Errorf("get interactive HTML: %w", err)
+	}
+	arr, _ := result.([]any)
+	if len(arr) > 0 {
+		if html, ok := arr[0].(string); ok {
+			return html, nil
+		}
+	}
+	return "", nil
+}
+
+// ReviseSlide revises a single slide in a slide deck artifact using natural language instructions.
+// NOTE: slideIndex is 0-based. The exact parameter structure is best-effort based on reverse engineering.
+func (a *ArtifactsAPI) ReviseSlide(ctx context.Context, notebookID, artifactID string, slideIndex int, instructions string) (*GenerationStatus, error) {
+	params := []any{notebookID, artifactID, slideIndex, instructions}
+	result, err := a.client.RPCCall(ctx, rpc.ReviseSlide, params, "/notebook/"+notebookID, false)
+	if err != nil {
+		return nil, fmt.Errorf("revise slide: %w", err)
+	}
+	arr, _ := result.([]any)
+	taskID := ""
+	if len(arr) > 0 {
+		if id, ok := arr[0].(string); ok {
+			taskID = id
+		}
+	}
+	return &GenerationStatus{
+		TaskID: taskID,
+		Status: "pending",
+	}, nil
+}
+
 func (a *ArtifactsAPI) createArtifact(ctx context.Context, notebookID string, params []any) (*GenerationStatus, error) {
 	result, err := a.client.RPCCall(ctx, rpc.CreateArtifact, params, "/notebook/"+notebookID, false)
 	if err != nil {

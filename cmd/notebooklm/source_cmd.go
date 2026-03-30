@@ -1,0 +1,292 @@
+package main
+
+import (
+	"context"
+	"fmt"
+
+	"github.com/spf13/cobra"
+)
+
+var sourceCmd = &cobra.Command{
+	Use:   "source",
+	Short: "Manage notebook sources",
+}
+
+func init() {
+	var notebookID string
+	var mimeType string
+
+	listCmd := &cobra.Command{
+		Use:   "list",
+		Short: "List sources in a notebook",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			sources, err := c.Sources.List(context.Background(), notebookID)
+			if err != nil {
+				return err
+			}
+			if outputJSON {
+				printJSON(sources)
+				return nil
+			}
+			for _, s := range sources {
+				fmt.Printf("%s\t%s\t%s\n", s.ID, string(s.Kind()), s.Title)
+			}
+			return nil
+		},
+	}
+	listCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	listCmd.MarkFlagRequired("notebook")
+
+	getCmd := &cobra.Command{
+		Use:   "get <source-id>",
+		Short: "Get source details",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			src, err := c.Sources.Get(context.Background(), notebookID, args[0])
+			if err != nil {
+				return err
+			}
+			if outputJSON {
+				printJSON(src)
+				return nil
+			}
+			fmt.Printf("ID:     %s\nTitle:  %s\nType:   %s\n", src.ID, src.Title, string(src.Kind()))
+			if src.URL != "" {
+				fmt.Printf("URL:    %s\n", src.URL)
+			}
+			return nil
+		},
+	}
+	getCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	getCmd.MarkFlagRequired("notebook")
+
+	addURLCmd := &cobra.Command{
+		Use:   "add-url <url>",
+		Short: "Add a URL or YouTube video as a source",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			src, err := c.Sources.AddURL(context.Background(), notebookID, args[0])
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Added source: %s (%s)\n", src.ID, args[0])
+			return nil
+		},
+	}
+	addURLCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	addURLCmd.MarkFlagRequired("notebook")
+
+	addTextCmd := &cobra.Command{
+		Use:   "add-text <title> <content>",
+		Short: "Add pasted text as a source",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			src, err := c.Sources.AddText(context.Background(), notebookID, args[0], args[1])
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Added text source: %s\n", src.ID)
+			return nil
+		},
+	}
+	addTextCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	addTextCmd.MarkFlagRequired("notebook")
+
+	addFileCmd := &cobra.Command{
+		Use:   "add-file <path>",
+		Short: "Upload and add a file as a source (PDF, TXT, MD, DOCX)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			src, err := c.Sources.AddFile(context.Background(), notebookID, args[0])
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Added file source: %s\n", src.ID)
+			return nil
+		},
+	}
+	addFileCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	addFileCmd.MarkFlagRequired("notebook")
+
+	addDriveCmd := &cobra.Command{
+		Use:   "add-drive <drive-url>",
+		Short: "Add a Google Drive document as a source",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			mt := mimeType
+			if mt == "" {
+				mt = "application/vnd.google-apps.document"
+			}
+			src, err := c.Sources.AddDrive(context.Background(), notebookID, args[0], mt)
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Added Drive source: %s\n", src.ID)
+			return nil
+		},
+	}
+	addDriveCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	addDriveCmd.Flags().StringVar(&mimeType, "mime-type", "", "MIME type (default: application/vnd.google-apps.document)")
+	addDriveCmd.MarkFlagRequired("notebook")
+
+	renameCmd := &cobra.Command{
+		Use:   "rename <source-id> <new-title>",
+		Short: "Rename a source",
+		Args:  cobra.ExactArgs(2),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			src, err := c.Sources.Rename(context.Background(), notebookID, args[0], args[1])
+			if err != nil {
+				return err
+			}
+			fmt.Printf("Renamed to: %s\n", src.Title)
+			return nil
+		},
+	}
+	renameCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	renameCmd.MarkFlagRequired("notebook")
+
+	refreshCmd := &cobra.Command{
+		Use:   "refresh <source-id>",
+		Short: "Re-fetch content for a URL or Drive source",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			if err := c.Sources.Refresh(context.Background(), notebookID, args[0]); err != nil {
+				return err
+			}
+			fmt.Printf("Refreshed source: %s\n", args[0])
+			return nil
+		},
+	}
+	refreshCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	refreshCmd.MarkFlagRequired("notebook")
+
+	deleteCmd := &cobra.Command{
+		Use:   "delete <source-id>",
+		Short: "Delete a source from a notebook",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			if err := c.Sources.Delete(context.Background(), notebookID, args[0]); err != nil {
+				return err
+			}
+			fmt.Printf("Deleted source: %s\n", args[0])
+			return nil
+		},
+	}
+	deleteCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	deleteCmd.MarkFlagRequired("notebook")
+
+	getGuideCmd := &cobra.Command{
+		Use:   "get-guide <source-id>",
+		Short: "Get the guide text for a source",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			guide, err := c.Sources.GetGuide(context.Background(), notebookID, args[0])
+			if err != nil {
+				return err
+			}
+			if outputJSON {
+				printJSON(map[string]string{"guide": guide})
+				return nil
+			}
+			fmt.Print(guide)
+			return nil
+		},
+	}
+	getGuideCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	getGuideCmd.MarkFlagRequired("notebook")
+
+	checkFreshnessCmd := &cobra.Command{
+		Use:   "check-freshness <source-id>",
+		Short: "Check whether a source is fresh",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			fresh, err := c.Sources.CheckFreshness(context.Background(), notebookID, args[0])
+			if err != nil {
+				return err
+			}
+			if outputJSON {
+				printJSON(map[string]bool{"fresh": fresh})
+				return nil
+			}
+			fmt.Printf("Fresh: %v\n", fresh)
+			return nil
+		},
+	}
+	checkFreshnessCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	checkFreshnessCmd.MarkFlagRequired("notebook")
+
+	discoverCmd := &cobra.Command{
+		Use:   "discover",
+		Short: "Discover suggested sources for a notebook",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			urls, err := c.Sources.DiscoverSources(context.Background(), notebookID)
+			if err != nil {
+				return err
+			}
+			if outputJSON {
+				printJSON(urls)
+				return nil
+			}
+			if len(urls) == 0 {
+				fmt.Println("No sources discovered.")
+				return nil
+			}
+			for _, u := range urls {
+				fmt.Println(u)
+			}
+			return nil
+		},
+	}
+	discoverCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	discoverCmd.MarkFlagRequired("notebook")
+
+	sourceCmd.AddCommand(listCmd, getCmd, addURLCmd, addTextCmd, addFileCmd, addDriveCmd, renameCmd, refreshCmd, deleteCmd, getGuideCmd, checkFreshnessCmd, discoverCmd)
+}

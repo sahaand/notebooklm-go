@@ -66,21 +66,19 @@ type Notebook struct {
 }
 
 // NotebookFromAPIResponse parses a notebook from the raw API response array.
+// Response layout: [0]=title, [1]=sources[], [2]=id, ...
 func NotebookFromAPIResponse(data []any) Notebook {
 	nb := Notebook{}
 	if len(data) == 0 {
 		return nb
 	}
-	if id, ok := data[0].(string); ok {
-		nb.ID = id
-	}
-	// Title is typically at index 1 in a nested structure
-	if titleArr, ok := data[1].([]any); ok && len(titleArr) > 0 {
-		if title, ok := titleArr[0].(string); ok {
-			nb.Title = title
-		}
-	} else if title, ok := data[1].(string); ok {
+	if title, ok := data[0].(string); ok {
 		nb.Title = title
+	}
+	if len(data) > 2 {
+		if id, ok := data[2].(string); ok {
+			nb.ID = id
+		}
 	}
 	return nb
 }

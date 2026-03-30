@@ -136,7 +136,14 @@ func FetchTokens(ctx context.Context, cookies map[string]string) (csrfToken, ses
 		return "", "", fmt.Errorf("create request: %w", err)
 	}
 	req.Header.Set("Cookie", cookieHeader)
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36")
+	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+	req.Header.Set("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8")
+	req.Header.Set("Accept-Language", "en-US,en;q=0.9")
+	req.Header.Set("Sec-Fetch-Site", "none")
+	req.Header.Set("Sec-Fetch-Mode", "navigate")
+	req.Header.Set("Sec-Fetch-User", "?1")
+	req.Header.Set("Sec-Fetch-Dest", "document")
+	req.Header.Set("Upgrade-Insecure-Requests", "1")
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -172,20 +179,66 @@ func FetchTokens(ctx context.Context, cookies map[string]string) (csrfToken, ses
 }
 
 // NewAuthTokensFromStorage creates AuthTokens by loading storage and fetching live tokens.
+// If the storage file contains pre-extracted tokens (written by export_cookies.js) those are
+// used directly, avoiding raw HTTP requests that Google blocks with CookieMismatch.
 func NewAuthTokensFromStorage(ctx context.Context, storagePath string) (*AuthTokens, error) {
-	cookies, err := LoadAuthFromStorage(storagePath)
+	cookies, csrf, sid, err := loadAuthAndTokens(storagePath)
 	if err != nil {
 		return nil, err
 	}
-	csrf, sid, err := FetchTokens(ctx, cookies)
-	if err != nil {
-		return nil, err
+	if csrf == "" || sid == "" {
+		csrf, sid, err = FetchTokens(ctx, cookies)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &AuthTokens{
 		Cookies:   cookies,
 		CSRFToken: csrf,
 		SessionID: sid,
 	}, nil
+}
+
+func loadAuthAndTokens(path string) (cookies map[string]string, csrfToken, sessionID string, err error) {
+	var data []byte
+
+	switch {
+	case path != "":
+		data, err = os.ReadFile(path)
+		if err != nil {
+			return nil, "", "", fmt.Errorf("read storage file %s: %w", path, err)
+		}
+	case os.Getenv("NOTEBOOKLM_AUTH_JSON") != "":
+		data = []byte(os.Getenv("NOTEBOOKLM_AUTH_JSON"))
+	default:
+		defaultPath := DefaultStoragePath()
+		data, err = os.ReadFile(defaultPath)
+		if err != nil {
+			return nil, "", "", fmt.Errorf("storage file not found: %s — run 'notebooklm login' to authenticate", defaultPath)
+		}
+	}
+
+	var storageState struct {
+		Cookies []struct {
+			Name   string `json:"name"`
+			Value  string `json:"value"`
+			Domain string `json:"domain"`
+		} `json:"cookies"`
+		NotebookLM *struct {
+			CSRFToken string `json:"csrfToken"`
+			SessionID string `json:"sessionID"`
+		} `json:"_notebooklm"`
+	}
+	if err := json.Unmarshal(data, &storageState); err != nil {
+		return nil, "", "", fmt.Errorf("parse storage state: %w", err)
+	}
+
+	cookies = extractCookies(storageState.Cookies)
+	if storageState.NotebookLM != nil {
+		csrfToken = storageState.NotebookLM.CSRFToken
+		sessionID = storageState.NotebookLM.SessionID
+	}
+	return cookies, csrfToken, sessionID, nil
 }
 
 func makeCookieHeader(cookies map[string]string) string {

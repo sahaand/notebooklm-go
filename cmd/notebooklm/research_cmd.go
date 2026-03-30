@@ -1,0 +1,100 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/spf13/cobra"
+)
+
+var researchCmd = &cobra.Command{
+	Use:   "research",
+	Short: "Web research operations",
+}
+
+func init() {
+	var (
+		notebookID string
+		waitFlag   bool
+		importFlag bool
+	)
+
+	fastCmd := &cobra.Command{
+		Use:   "fast <query>",
+		Short: "Start a fast web research query",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			query := strings.Join(args, " ")
+			res, err := c.Research.StartFast(context.Background(), notebookID, query)
+			if err != nil {
+				return err
+			}
+			if outputJSON {
+				printJSON(res)
+				return nil
+			}
+			fmt.Printf("Started fast research: task=%s status=%s\n", res.TaskID, res.Status)
+			return nil
+		},
+	}
+	fastCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	fastCmd.MarkFlagRequired("notebook")
+
+	deepCmd := &cobra.Command{
+		Use:   "deep <query>",
+		Short: "Start a deep web research query",
+		Args:  cobra.MinimumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			c, err := client()
+			if err != nil {
+				return err
+			}
+			query := strings.Join(args, " ")
+			res, err := c.Research.StartDeep(context.Background(), notebookID, query)
+			if err != nil {
+				return err
+			}
+			if !waitFlag || res.TaskID == "" {
+				if outputJSON {
+					printJSON(res)
+					return nil
+				}
+				fmt.Printf("Started deep research: task=%s status=%s\n", res.TaskID, res.Status)
+				return nil
+			}
+			fmt.Println("Waiting for research completion...")
+			completed, err := c.Research.WaitForCompletion(context.Background(), notebookID, res.TaskID, 15*time.Minute)
+			if err != nil {
+				return err
+			}
+			if importFlag && len(completed.Sources) > 0 {
+				fmt.Printf("Importing %d sources...\n", len(completed.Sources))
+				if err := c.Research.Import(context.Background(), notebookID, completed.TaskID, completed.Sources); err != nil {
+					return fmt.Errorf("import: %w", err)
+				}
+				fmt.Println("Sources imported.")
+			}
+			if outputJSON {
+				printJSON(completed)
+				return nil
+			}
+			fmt.Printf("Status: %s\n", completed.Status)
+			for _, src := range completed.Sources {
+				fmt.Printf("  %s\n", src)
+			}
+			return nil
+		},
+	}
+	deepCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
+	deepCmd.Flags().BoolVarP(&waitFlag, "wait", "w", false, "wait for completion")
+	deepCmd.Flags().BoolVar(&importFlag, "import", false, "auto-import discovered sources after completion (requires --wait)")
+	deepCmd.MarkFlagRequired("notebook")
+
+	researchCmd.AddCommand(fastCmd, deepCmd)
+}
