@@ -30,7 +30,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			s, err := c.Sharing.GetStatus(context.Background(), notebookID)
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			s, err := c.Sharing.GetStatus(context.Background(), nb)
 			if err != nil {
 				return err
 			}
@@ -58,7 +62,6 @@ func init() {
 		},
 	}
 	statusCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	statusCmd.MarkFlagRequired("notebook")
 
 	setPublicCmd := &cobra.Command{
 		Use:   "set-public",
@@ -68,7 +71,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			s, err := c.Sharing.SetPublic(context.Background(), notebookID, public)
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			s, err := c.Sharing.SetPublic(context.Background(), nb, public)
 			if err != nil {
 				return err
 			}
@@ -85,7 +92,6 @@ func init() {
 	}
 	setPublicCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
 	setPublicCmd.Flags().BoolVar(&public, "public", false, "enable public link sharing")
-	setPublicCmd.MarkFlagRequired("notebook")
 
 	addUserCmd := &cobra.Command{
 		Use:   "add-user <email>",
@@ -96,11 +102,15 @@ func init() {
 			if err != nil {
 				return err
 			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
 			perm := rpc.ShareViewer
 			if permission == "editor" {
 				perm = rpc.ShareEditor
 			}
-			s, err := c.Sharing.AddUser(context.Background(), notebookID, args[0], perm, notify, message)
+			s, err := c.Sharing.AddUser(context.Background(), nb, args[0], perm, notify, message)
 			if err != nil {
 				return err
 			}
@@ -116,7 +126,6 @@ func init() {
 	addUserCmd.Flags().StringVar(&permission, "permission", "viewer", "permission: viewer, editor")
 	addUserCmd.Flags().BoolVar(&notify, "notify", false, "send email notification")
 	addUserCmd.Flags().StringVar(&message, "message", "", "optional message for notification email")
-	addUserCmd.MarkFlagRequired("notebook")
 
 	updateUserCmd := &cobra.Command{
 		Use:   "update-user <email>",
@@ -127,11 +136,15 @@ func init() {
 			if err != nil {
 				return err
 			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
 			perm := rpc.ShareViewer
 			if permission == "editor" {
 				perm = rpc.ShareEditor
 			}
-			s, err := c.Sharing.UpdateUser(context.Background(), notebookID, args[0], perm)
+			s, err := c.Sharing.UpdateUser(context.Background(), nb, args[0], perm)
 			if err != nil {
 				return err
 			}
@@ -145,7 +158,6 @@ func init() {
 	}
 	updateUserCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
 	updateUserCmd.Flags().StringVar(&permission, "permission", "viewer", "permission: viewer, editor")
-	updateUserCmd.MarkFlagRequired("notebook")
 	updateUserCmd.MarkFlagRequired("permission")
 
 	removeUserCmd := &cobra.Command{
@@ -157,7 +169,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			s, err := c.Sharing.RemoveUser(context.Background(), notebookID, args[0])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			s, err := c.Sharing.RemoveUser(context.Background(), nb, args[0])
 			if err != nil {
 				return err
 			}
@@ -170,7 +186,6 @@ func init() {
 		},
 	}
 	removeUserCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	removeUserCmd.MarkFlagRequired("notebook")
 
 	shareCmd.AddCommand(statusCmd, setPublicCmd, addUserCmd, updateUserCmd, removeUserCmd)
 }

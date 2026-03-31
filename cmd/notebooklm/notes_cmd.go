@@ -28,7 +28,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			notes, err := c.Notes.List(context.Background(), notebookID)
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			notes, err := c.Notes.List(context.Background(), nb)
 			if err != nil {
 				return err
 			}
@@ -47,7 +51,6 @@ func init() {
 		},
 	}
 	listCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	listCmd.MarkFlagRequired("notebook")
 
 	createCmd := &cobra.Command{
 		Use:   "create <title> <content>",
@@ -58,7 +61,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			note, err := c.Notes.Create(context.Background(), notebookID, args[0], args[1])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			note, err := c.Notes.Create(context.Background(), nb, args[0], args[1])
 			if err != nil {
 				return err
 			}
@@ -71,7 +78,6 @@ func init() {
 		},
 	}
 	createCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	createCmd.MarkFlagRequired("notebook")
 
 	updateCmd := &cobra.Command{
 		Use:   "update <note-id> <content>",
@@ -82,7 +88,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			if _, err := c.Notes.Update(context.Background(), notebookID, args[0], args[1]); err != nil {
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			if _, err := c.Notes.Update(context.Background(), nb, args[0], args[1]); err != nil {
 				return err
 			}
 			fmt.Printf("Updated note: %s\n", args[0])
@@ -90,7 +100,6 @@ func init() {
 		},
 	}
 	updateCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	updateCmd.MarkFlagRequired("notebook")
 
 	deleteCmd := &cobra.Command{
 		Use:   "delete <note-id>",
@@ -101,7 +110,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			if err := c.Notes.Delete(context.Background(), notebookID, args[0]); err != nil {
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			if err := c.Notes.Delete(context.Background(), nb, args[0]); err != nil {
 				return err
 			}
 			fmt.Printf("Deleted note: %s\n", args[0])
@@ -109,7 +122,6 @@ func init() {
 		},
 	}
 	deleteCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	deleteCmd.MarkFlagRequired("notebook")
 
 	mindMapCmd := &cobra.Command{
 		Use:   "mind-map",
@@ -119,7 +131,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			status, err := c.Notes.GenerateMindMap(context.Background(), notebookID, sourceIDs)
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			status, err := c.Notes.GenerateMindMap(context.Background(), nb, sourceIDs)
 			if err != nil {
 				return err
 			}
@@ -128,7 +144,7 @@ func init() {
 				return nil
 			}
 			fmt.Println("Waiting for completion...")
-			completed, err := c.Artifacts.WaitForCompletion(context.Background(), notebookID, status.TaskID, 10*time.Minute)
+			completed, err := c.Artifacts.WaitForCompletion(context.Background(), nb, status.TaskID, 10*time.Minute)
 			if err != nil {
 				return err
 			}
@@ -143,7 +159,6 @@ func init() {
 	mindMapCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
 	mindMapCmd.Flags().BoolVarP(&waitFlag, "wait", "w", false, "wait for completion")
 	mindMapCmd.Flags().StringArrayVar(&sourceIDs, "source", nil, "source IDs to include")
-	mindMapCmd.MarkFlagRequired("notebook")
 
 	notesCmd.AddCommand(listCmd, createCmd, updateCmd, deleteCmd, mindMapCmd)
 }

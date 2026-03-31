@@ -179,5 +179,44 @@ func init() {
 		},
 	}
 
-	notebookCmd.AddCommand(listCmd, createCmd, getCmd, deleteCmd, renameCmd, describeCmd, metadataCmd)
+	useCmd := &cobra.Command{
+		Use:   "use <notebook-id>",
+		Short: "Set a default notebook (saved to ~/.notebooklm/context.json)",
+		Args:  cobra.ExactArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := writeContextNotebook(args[0]); err != nil {
+				return err
+			}
+			fmt.Printf("Default notebook set to: %s\n", args[0])
+			return nil
+		},
+	}
+
+	unuseCmd := &cobra.Command{
+		Use:   "unuse",
+		Short: "Clear the default notebook",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			if err := clearContextNotebook(); err != nil {
+				return err
+			}
+			fmt.Println("Default notebook cleared.")
+			return nil
+		},
+	}
+
+	currentCmd := &cobra.Command{
+		Use:   "current",
+		Short: "Show the current default notebook",
+		RunE: func(cmd *cobra.Command, args []string) error {
+			id := readContextNotebook()
+			if id == "" {
+				fmt.Println("No default notebook set. Use 'notebooklm notebook use <id>'.")
+				return nil
+			}
+			fmt.Println(id)
+			return nil
+		},
+	}
+
+	notebookCmd.AddCommand(listCmd, createCmd, getCmd, deleteCmd, renameCmd, describeCmd, metadataCmd, useCmd, unuseCmd, currentCmd)
 }

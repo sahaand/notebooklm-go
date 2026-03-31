@@ -30,8 +30,12 @@ func init() {
 			if err != nil {
 				return err
 			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
 			query := strings.Join(args, " ")
-			res, err := c.Research.StartFast(context.Background(), notebookID, query)
+			res, err := c.Research.StartFast(context.Background(), nb, query)
 			if err != nil {
 				return err
 			}
@@ -44,7 +48,6 @@ func init() {
 		},
 	}
 	fastCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	fastCmd.MarkFlagRequired("notebook")
 
 	deepCmd := &cobra.Command{
 		Use:   "deep <query>",
@@ -55,8 +58,12 @@ func init() {
 			if err != nil {
 				return err
 			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
 			query := strings.Join(args, " ")
-			res, err := c.Research.StartDeep(context.Background(), notebookID, query)
+			res, err := c.Research.StartDeep(context.Background(), nb, query)
 			if err != nil {
 				return err
 			}
@@ -69,13 +76,13 @@ func init() {
 				return nil
 			}
 			fmt.Println("Waiting for research completion...")
-			completed, err := c.Research.WaitForCompletion(context.Background(), notebookID, res.TaskID, 15*time.Minute)
+			completed, err := c.Research.WaitForCompletion(context.Background(), nb, res.TaskID, 15*time.Minute)
 			if err != nil {
 				return err
 			}
 			if importFlag && len(completed.Sources) > 0 {
 				fmt.Printf("Importing %d sources...\n", len(completed.Sources))
-				if err := c.Research.Import(context.Background(), notebookID, completed.TaskID, completed.Sources); err != nil {
+				if err := c.Research.Import(context.Background(), nb, completed.TaskID, completed.Sources); err != nil {
 					return fmt.Errorf("import: %w", err)
 				}
 				fmt.Println("Sources imported.")
@@ -94,7 +101,6 @@ func init() {
 	deepCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
 	deepCmd.Flags().BoolVarP(&waitFlag, "wait", "w", false, "wait for completion")
 	deepCmd.Flags().BoolVar(&importFlag, "import", false, "auto-import discovered sources after completion (requires --wait)")
-	deepCmd.MarkFlagRequired("notebook")
 
 	researchCmd.AddCommand(fastCmd, deepCmd)
 }

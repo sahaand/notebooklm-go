@@ -24,7 +24,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			sources, err := c.Sources.List(context.Background(), notebookID)
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			sources, err := c.Sources.List(context.Background(), nb)
 			if err != nil {
 				return err
 			}
@@ -39,7 +43,6 @@ func init() {
 		},
 	}
 	listCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	listCmd.MarkFlagRequired("notebook")
 
 	getCmd := &cobra.Command{
 		Use:   "get <source-id>",
@@ -50,7 +53,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			src, err := c.Sources.Get(context.Background(), notebookID, args[0])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			src, err := c.Sources.Get(context.Background(), nb, args[0])
 			if err != nil {
 				return err
 			}
@@ -66,7 +73,6 @@ func init() {
 		},
 	}
 	getCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	getCmd.MarkFlagRequired("notebook")
 
 	addURLCmd := &cobra.Command{
 		Use:   "add-url <url>",
@@ -77,7 +83,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			src, err := c.Sources.AddURL(context.Background(), notebookID, args[0])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			src, err := c.Sources.AddURL(context.Background(), nb, args[0])
 			if err != nil {
 				return err
 			}
@@ -86,7 +96,6 @@ func init() {
 		},
 	}
 	addURLCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	addURLCmd.MarkFlagRequired("notebook")
 
 	addTextCmd := &cobra.Command{
 		Use:   "add-text <title> <content>",
@@ -97,7 +106,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			src, err := c.Sources.AddText(context.Background(), notebookID, args[0], args[1])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			src, err := c.Sources.AddText(context.Background(), nb, args[0], args[1])
 			if err != nil {
 				return err
 			}
@@ -106,7 +119,6 @@ func init() {
 		},
 	}
 	addTextCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	addTextCmd.MarkFlagRequired("notebook")
 
 	addFileCmd := &cobra.Command{
 		Use:   "add-file <path>",
@@ -117,7 +129,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			src, err := c.Sources.AddFile(context.Background(), notebookID, args[0])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			src, err := c.Sources.AddFile(context.Background(), nb, args[0])
 			if err != nil {
 				return err
 			}
@@ -126,7 +142,6 @@ func init() {
 		},
 	}
 	addFileCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	addFileCmd.MarkFlagRequired("notebook")
 
 	addDriveCmd := &cobra.Command{
 		Use:   "add-drive <drive-url>",
@@ -137,11 +152,15 @@ func init() {
 			if err != nil {
 				return err
 			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
 			mt := mimeType
 			if mt == "" {
 				mt = "application/vnd.google-apps.document"
 			}
-			src, err := c.Sources.AddDrive(context.Background(), notebookID, args[0], mt)
+			src, err := c.Sources.AddDrive(context.Background(), nb, args[0], mt)
 			if err != nil {
 				return err
 			}
@@ -151,7 +170,6 @@ func init() {
 	}
 	addDriveCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
 	addDriveCmd.Flags().StringVar(&mimeType, "mime-type", "", "MIME type (default: application/vnd.google-apps.document)")
-	addDriveCmd.MarkFlagRequired("notebook")
 
 	renameCmd := &cobra.Command{
 		Use:   "rename <source-id> <new-title>",
@@ -162,7 +180,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			src, err := c.Sources.Rename(context.Background(), notebookID, args[0], args[1])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			src, err := c.Sources.Rename(context.Background(), nb, args[0], args[1])
 			if err != nil {
 				return err
 			}
@@ -171,7 +193,6 @@ func init() {
 		},
 	}
 	renameCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	renameCmd.MarkFlagRequired("notebook")
 
 	refreshCmd := &cobra.Command{
 		Use:   "refresh <source-id>",
@@ -182,7 +203,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			if err := c.Sources.Refresh(context.Background(), notebookID, args[0]); err != nil {
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			if err := c.Sources.Refresh(context.Background(), nb, args[0]); err != nil {
 				return err
 			}
 			fmt.Printf("Refreshed source: %s\n", args[0])
@@ -190,7 +215,6 @@ func init() {
 		},
 	}
 	refreshCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	refreshCmd.MarkFlagRequired("notebook")
 
 	deleteCmd := &cobra.Command{
 		Use:   "delete <source-id>",
@@ -201,7 +225,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			if err := c.Sources.Delete(context.Background(), notebookID, args[0]); err != nil {
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			if err := c.Sources.Delete(context.Background(), nb, args[0]); err != nil {
 				return err
 			}
 			fmt.Printf("Deleted source: %s\n", args[0])
@@ -209,7 +237,6 @@ func init() {
 		},
 	}
 	deleteCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	deleteCmd.MarkFlagRequired("notebook")
 
 	getGuideCmd := &cobra.Command{
 		Use:   "get-guide <source-id>",
@@ -220,7 +247,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			guide, err := c.Sources.GetGuide(context.Background(), notebookID, args[0])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			guide, err := c.Sources.GetGuide(context.Background(), nb, args[0])
 			if err != nil {
 				return err
 			}
@@ -233,7 +264,6 @@ func init() {
 		},
 	}
 	getGuideCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	getGuideCmd.MarkFlagRequired("notebook")
 
 	checkFreshnessCmd := &cobra.Command{
 		Use:   "check-freshness <source-id>",
@@ -244,7 +274,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			fresh, err := c.Sources.CheckFreshness(context.Background(), notebookID, args[0])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			fresh, err := c.Sources.CheckFreshness(context.Background(), nb, args[0])
 			if err != nil {
 				return err
 			}
@@ -257,7 +291,6 @@ func init() {
 		},
 	}
 	checkFreshnessCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	checkFreshnessCmd.MarkFlagRequired("notebook")
 
 	discoverCmd := &cobra.Command{
 		Use:   "discover",
@@ -267,7 +300,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			urls, err := c.Sources.DiscoverSources(context.Background(), notebookID)
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			urls, err := c.Sources.DiscoverSources(context.Background(), nb)
 			if err != nil {
 				return err
 			}
@@ -286,7 +323,6 @@ func init() {
 		},
 	}
 	discoverCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	discoverCmd.MarkFlagRequired("notebook")
 
 	sourceCmd.AddCommand(listCmd, getCmd, addURLCmd, addTextCmd, addFileCmd, addDriveCmd, renameCmd, refreshCmd, deleteCmd, getGuideCmd, checkFreshnessCmd, discoverCmd)
 }

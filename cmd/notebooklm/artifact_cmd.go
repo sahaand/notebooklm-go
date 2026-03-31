@@ -46,7 +46,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			artifacts, err := c.Artifacts.List(context.Background(), notebookID)
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			artifacts, err := c.Artifacts.List(context.Background(), nb)
 			if err != nil {
 				return err
 			}
@@ -61,7 +65,6 @@ func init() {
 		},
 	}
 	listCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	listCmd.MarkFlagRequired("notebook")
 
 	getCmd := &cobra.Command{
 		Use:   "get <artifact-id>",
@@ -72,7 +75,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			art, err := c.Artifacts.Get(context.Background(), notebookID, args[0])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			art, err := c.Artifacts.Get(context.Background(), nb, args[0])
 			if err != nil {
 				return err
 			}
@@ -88,7 +95,6 @@ func init() {
 		},
 	}
 	getCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	getCmd.MarkFlagRequired("notebook")
 
 	renameCmd := &cobra.Command{
 		Use:   "rename <artifact-id> <new-title>",
@@ -99,7 +105,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			if err := c.Artifacts.Rename(context.Background(), notebookID, args[0], args[1]); err != nil {
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			if err := c.Artifacts.Rename(context.Background(), nb, args[0], args[1]); err != nil {
 				return err
 			}
 			fmt.Printf("Renamed artifact: %s\n", args[0])
@@ -107,7 +117,6 @@ func init() {
 		},
 	}
 	renameCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	renameCmd.MarkFlagRequired("notebook")
 
 	// waitAndDownload is a helper for generation commands that support --wait and --output.
 	waitAndDownload := func(c *notebooklm.Client, notebookID string, status *notebooklm.GenerationStatus, destPath string) error {
@@ -138,6 +147,10 @@ func init() {
 			if err != nil {
 				return err
 			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
 			opts := notebooklm.GenerateAudioOptions{
 				SourceIDs:    sourceIDs,
 				Language:     language,
@@ -161,11 +174,11 @@ func init() {
 			case "default":
 				opts.Length = rpc.AudioDefault
 			}
-			status, err := c.Artifacts.GenerateAudio(context.Background(), notebookID, opts)
+			status, err := c.Artifacts.GenerateAudio(context.Background(), nb, opts)
 			if err != nil {
 				return err
 			}
-			return waitAndDownload(c, notebookID, status, destPath)
+			return waitAndDownload(c, nb, status, destPath)
 		},
 	}
 	audioCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
@@ -176,7 +189,6 @@ func init() {
 	audioCmd.Flags().StringArrayVar(&sourceIDs, "source", nil, "source IDs to include (repeat for multiple)")
 	audioCmd.Flags().StringVar(&formatStr, "format", "", "format: deep-dive, brief, critique, debate")
 	audioCmd.Flags().StringVar(&lengthStr, "length", "", "length: short, default, long")
-	audioCmd.MarkFlagRequired("notebook")
 
 	videoCmd := &cobra.Command{
 		Use:   "video",
@@ -184,6 +196,10 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := client()
 			if err != nil {
+				return err
+			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
 				return err
 			}
 			opts := notebooklm.GenerateVideoOptions{
@@ -217,11 +233,11 @@ func init() {
 			case "paper-craft":
 				opts.Style = rpc.VideoStylePaperCraft
 			}
-			status, err := c.Artifacts.GenerateVideo(context.Background(), notebookID, opts)
+			status, err := c.Artifacts.GenerateVideo(context.Background(), nb, opts)
 			if err != nil {
 				return err
 			}
-			return waitAndDownload(c, notebookID, status, destPath)
+			return waitAndDownload(c, nb, status, destPath)
 		},
 	}
 	videoCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
@@ -232,7 +248,6 @@ func init() {
 	videoCmd.Flags().StringArrayVar(&sourceIDs, "source", nil, "source IDs to include")
 	videoCmd.Flags().StringVar(&formatStr, "format", "", "format: explainer, brief, cinematic")
 	videoCmd.Flags().StringVar(&styleStr, "style", "", "style: classic, whiteboard, kawaii, anime, watercolor, retro-print, heritage, paper-craft")
-	videoCmd.MarkFlagRequired("notebook")
 
 	reportCmd := &cobra.Command{
 		Use:   "report",
@@ -240,6 +255,10 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := client()
 			if err != nil {
+				return err
+			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
 				return err
 			}
 			opts := notebooklm.GenerateReportOptions{
@@ -260,11 +279,11 @@ func init() {
 			default:
 				opts.Format = rpc.ReportBriefingDoc
 			}
-			status, err := c.Artifacts.GenerateReport(context.Background(), notebookID, opts)
+			status, err := c.Artifacts.GenerateReport(context.Background(), nb, opts)
 			if err != nil {
 				return err
 			}
-			return waitAndDownload(c, notebookID, status, destPath)
+			return waitAndDownload(c, nb, status, destPath)
 		},
 	}
 	reportCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
@@ -275,7 +294,6 @@ func init() {
 	reportCmd.Flags().StringVar(&formatStr, "format", "", "format: briefing-doc, study-guide, blog-post, custom")
 	reportCmd.Flags().StringVar(&customPrompt, "custom-prompt", "", "custom report prompt")
 	reportCmd.Flags().StringVar(&extraInstr, "extra-instructions", "", "extra generation instructions")
-	reportCmd.MarkFlagRequired("notebook")
 
 	quizCmd := &cobra.Command{
 		Use:   "quiz",
@@ -283,6 +301,10 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := client()
 			if err != nil {
+				return err
+			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
 				return err
 			}
 			opts := notebooklm.GenerateQuizOptions{
@@ -305,11 +327,11 @@ func init() {
 			default:
 				opts.Difficulty = rpc.QuizMedium
 			}
-			status, err := c.Artifacts.GenerateQuiz(context.Background(), notebookID, opts)
+			status, err := c.Artifacts.GenerateQuiz(context.Background(), nb, opts)
 			if err != nil {
 				return err
 			}
-			return waitAndDownload(c, notebookID, status, destPath)
+			return waitAndDownload(c, nb, status, destPath)
 		},
 	}
 	quizCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
@@ -319,7 +341,6 @@ func init() {
 	quizCmd.Flags().StringArrayVar(&sourceIDs, "source", nil, "source IDs to include")
 	quizCmd.Flags().StringVar(&quantity, "quantity", "standard", "quantity: fewer, standard, more")
 	quizCmd.Flags().StringVar(&difficulty, "difficulty", "medium", "difficulty: easy, medium, hard")
-	quizCmd.MarkFlagRequired("notebook")
 
 	flashcardsCmd := &cobra.Command{
 		Use:   "flashcards",
@@ -327,6 +348,10 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := client()
 			if err != nil {
+				return err
+			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
 				return err
 			}
 			opts := notebooklm.GenerateQuizOptions{
@@ -350,11 +375,11 @@ func init() {
 			default:
 				opts.Difficulty = rpc.QuizMedium
 			}
-			status, err := c.Artifacts.GenerateQuiz(context.Background(), notebookID, opts)
+			status, err := c.Artifacts.GenerateQuiz(context.Background(), nb, opts)
 			if err != nil {
 				return err
 			}
-			return waitAndDownload(c, notebookID, status, destPath)
+			return waitAndDownload(c, nb, status, destPath)
 		},
 	}
 	flashcardsCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
@@ -364,7 +389,6 @@ func init() {
 	flashcardsCmd.Flags().StringArrayVar(&sourceIDs, "source", nil, "source IDs to include")
 	flashcardsCmd.Flags().StringVar(&quantity, "quantity", "standard", "quantity: fewer, standard, more")
 	flashcardsCmd.Flags().StringVar(&difficulty, "difficulty", "medium", "difficulty: easy, medium, hard")
-	flashcardsCmd.MarkFlagRequired("notebook")
 
 	slideDeckCmd := &cobra.Command{
 		Use:   "slide-deck",
@@ -372,6 +396,10 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := client()
 			if err != nil {
+				return err
+			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
 				return err
 			}
 			opts := notebooklm.GenerateSlideDeckOptions{
@@ -390,11 +418,11 @@ func init() {
 			default:
 				opts.Length = rpc.SlideDeckDefault
 			}
-			status, err := c.Artifacts.GenerateSlideDeck(context.Background(), notebookID, opts)
+			status, err := c.Artifacts.GenerateSlideDeck(context.Background(), nb, opts)
 			if err != nil {
 				return err
 			}
-			return waitAndDownload(c, notebookID, status, destPath)
+			return waitAndDownload(c, nb, status, destPath)
 		},
 	}
 	slideDeckCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
@@ -404,7 +432,6 @@ func init() {
 	slideDeckCmd.Flags().StringArrayVar(&sourceIDs, "source", nil, "source IDs to include")
 	slideDeckCmd.Flags().StringVar(&formatStr, "format", "", "format: detailed, presenter")
 	slideDeckCmd.Flags().StringVar(&lengthStr, "length", "", "length: default, short")
-	slideDeckCmd.MarkFlagRequired("notebook")
 
 	infographicCmd := &cobra.Command{
 		Use:   "infographic",
@@ -412,6 +439,10 @@ func init() {
 		RunE: func(cmd *cobra.Command, args []string) error {
 			c, err := client()
 			if err != nil {
+				return err
+			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
 				return err
 			}
 			opts := notebooklm.GenerateInfographicOptions{
@@ -457,11 +488,11 @@ func init() {
 			case "scientific":
 				opts.Style = rpc.InfographicStyleScientific
 			}
-			status, err := c.Artifacts.GenerateInfographic(context.Background(), notebookID, opts)
+			status, err := c.Artifacts.GenerateInfographic(context.Background(), nb, opts)
 			if err != nil {
 				return err
 			}
-			return waitAndDownload(c, notebookID, status, destPath)
+			return waitAndDownload(c, nb, status, destPath)
 		},
 	}
 	infographicCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
@@ -473,7 +504,6 @@ func init() {
 	infographicCmd.Flags().StringVar(&orientStr, "orientation", "", "orientation: landscape, portrait, square")
 	infographicCmd.Flags().StringVar(&detailStr, "detail", "", "detail level: concise, standard, detailed")
 	infographicCmd.Flags().StringVar(&styleStr, "style", "", "style: sketch-note, professional, bento-grid, editorial, instructional, bricks, clay, anime, kawaii, scientific")
-	infographicCmd.MarkFlagRequired("notebook")
 
 	dataTableCmd := &cobra.Command{
 		Use:   "data-table",
@@ -483,16 +513,20 @@ func init() {
 			if err != nil {
 				return err
 			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
 			opts := notebooklm.GenerateDataTableOptions{
 				SourceIDs:    sourceIDs,
 				Language:     language,
 				Instructions: instructions,
 			}
-			status, err := c.Artifacts.GenerateDataTable(context.Background(), notebookID, opts)
+			status, err := c.Artifacts.GenerateDataTable(context.Background(), nb, opts)
 			if err != nil {
 				return err
 			}
-			return waitAndDownload(c, notebookID, status, destPath)
+			return waitAndDownload(c, nb, status, destPath)
 		},
 	}
 	dataTableCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
@@ -501,7 +535,6 @@ func init() {
 	dataTableCmd.Flags().BoolVarP(&waitFlag, "wait", "w", false, "wait for completion")
 	dataTableCmd.Flags().StringVarP(&destPath, "output", "o", "", "download path when --wait is set")
 	dataTableCmd.Flags().StringArrayVar(&sourceIDs, "source", nil, "source IDs to include")
-	dataTableCmd.MarkFlagRequired("notebook")
 
 	downloadCmd := &cobra.Command{
 		Use:   "download <artifact-id> <dest-path>",
@@ -512,7 +545,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			if err := c.Artifacts.Download(context.Background(), notebookID, args[0], args[1]); err != nil {
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			if err := c.Artifacts.Download(context.Background(), nb, args[0], args[1]); err != nil {
 				return err
 			}
 			fmt.Printf("Downloaded to: %s\n", args[1])
@@ -520,7 +557,6 @@ func init() {
 		},
 	}
 	downloadCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	downloadCmd.MarkFlagRequired("notebook")
 
 	deleteCmd := &cobra.Command{
 		Use:   "delete <artifact-id>",
@@ -531,7 +567,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			if err := c.Artifacts.Delete(context.Background(), notebookID, args[0]); err != nil {
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			if err := c.Artifacts.Delete(context.Background(), nb, args[0]); err != nil {
 				return err
 			}
 			fmt.Printf("Deleted artifact: %s\n", args[0])
@@ -539,7 +579,6 @@ func init() {
 		},
 	}
 	deleteCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	deleteCmd.MarkFlagRequired("notebook")
 
 	suggestedReportsCmd := &cobra.Command{
 		Use:   "suggested-reports",
@@ -549,7 +588,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			suggestions, err := c.Artifacts.GetSuggestedReports(context.Background(), notebookID)
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			suggestions, err := c.Artifacts.GetSuggestedReports(context.Background(), nb)
 			if err != nil {
 				return err
 			}
@@ -568,7 +611,6 @@ func init() {
 		},
 	}
 	suggestedReportsCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	suggestedReportsCmd.MarkFlagRequired("notebook")
 
 	var exportTypeStr string
 	exportCmd := &cobra.Command{
@@ -580,13 +622,17 @@ func init() {
 			if err != nil {
 				return err
 			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
 			var exportType rpc.ExportType
 			if exportTypeStr == "sheets" {
 				exportType = rpc.ExportSheets
 			} else {
 				exportType = rpc.ExportDocs
 			}
-			url, err := c.Artifacts.ExportArtifact(context.Background(), notebookID, args[0], exportType)
+			url, err := c.Artifacts.ExportArtifact(context.Background(), nb, args[0], exportType)
 			if err != nil {
 				return err
 			}
@@ -600,7 +646,6 @@ func init() {
 	}
 	exportCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
 	exportCmd.Flags().StringVar(&exportTypeStr, "type", "docs", "export type: docs, sheets")
-	exportCmd.MarkFlagRequired("notebook")
 
 	shareLinkCmd := &cobra.Command{
 		Use:   "share-link <artifact-id>",
@@ -611,7 +656,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			url, err := c.Artifacts.ShareArtifact(context.Background(), notebookID, args[0])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			url, err := c.Artifacts.ShareArtifact(context.Background(), nb, args[0])
 			if err != nil {
 				return err
 			}
@@ -624,7 +673,6 @@ func init() {
 		},
 	}
 	shareLinkCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
-	shareLinkCmd.MarkFlagRequired("notebook")
 
 	interactiveHTMLCmd := &cobra.Command{
 		Use:   "interactive-html <artifact-id>",
@@ -635,7 +683,11 @@ func init() {
 			if err != nil {
 				return err
 			}
-			html, err := c.Artifacts.GetInteractiveHTML(context.Background(), notebookID, args[0])
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
+			html, err := c.Artifacts.GetInteractiveHTML(context.Background(), nb, args[0])
 			if err != nil {
 				return err
 			}
@@ -656,7 +708,6 @@ func init() {
 	}
 	interactiveHTMLCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
 	interactiveHTMLCmd.Flags().StringVarP(&destPath, "output", "o", "", "file path to save HTML")
-	interactiveHTMLCmd.MarkFlagRequired("notebook")
 
 	reviseSlideCmd := &cobra.Command{
 		Use:   "revise-slide <artifact-id> <slide-index> <instructions>",
@@ -667,21 +718,23 @@ func init() {
 			if err != nil {
 				return err
 			}
+			nb := notebookOrCtx(notebookID)
+			if err := requireNotebook(nb); err != nil {
+				return err
+			}
 			slideIndex, err := strconv.Atoi(args[1])
 			if err != nil {
 				return fmt.Errorf("slide-index must be an integer: %w", err)
 			}
-			status, err := c.Artifacts.ReviseSlide(context.Background(), notebookID, args[0], slideIndex, args[2])
+			status, err := c.Artifacts.ReviseSlide(context.Background(), nb, args[0], slideIndex, args[2])
 			if err != nil {
 				return err
 			}
-			return waitAndDownload(c, notebookID, status, destPath)
+			return waitAndDownload(c, nb, status, destPath)
 		},
 	}
 	reviseSlideCmd.Flags().StringVarP(&notebookID, "notebook", "n", "", "notebook ID (required)")
 	reviseSlideCmd.Flags().BoolVarP(&waitFlag, "wait", "w", false, "wait for completion")
-	reviseSlideCmd.MarkFlagRequired("notebook")
-
 	artifactCmd.AddCommand(
 		listCmd, getCmd, renameCmd,
 		audioCmd, videoCmd, reportCmd, quizCmd, flashcardsCmd,

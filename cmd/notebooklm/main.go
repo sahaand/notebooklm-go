@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/spf13/cobra"
@@ -64,6 +65,75 @@ func printJSON(v any) {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	enc.Encode(v)
+}
+
+// --------------------------------------------------------------------------
+// Context (default notebook) helpers
+// --------------------------------------------------------------------------
+
+type notebookContext struct {
+	NotebookID string `json:"notebook_id"`
+}
+
+func contextFilePath() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return ""
+	}
+	return filepath.Join(home, ".notebooklm", "context.json")
+}
+
+// readContextNotebook returns the default notebook ID from the context file,
+// or empty string if none is set.
+func readContextNotebook() string {
+	data, err := os.ReadFile(contextFilePath())
+	if err != nil {
+		return ""
+	}
+	var ctx notebookContext
+	if err := json.Unmarshal(data, &ctx); err != nil {
+		return ""
+	}
+	return ctx.NotebookID
+}
+
+// writeContextNotebook saves a default notebook ID to the context file.
+func writeContextNotebook(id string) error {
+	path := contextFilePath()
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	data, err := json.MarshalIndent(notebookContext{NotebookID: id}, "", "  ")
+	if err != nil {
+		return err
+	}
+	return os.WriteFile(path, data, 0600)
+}
+
+// clearContextNotebook removes the context file.
+func clearContextNotebook() error {
+	err := os.Remove(contextFilePath())
+	if os.IsNotExist(err) {
+		return nil
+	}
+	return err
+}
+
+// notebookOrCtx returns the flag value if non-empty, otherwise falls back to
+// the saved context notebook ID.
+func notebookOrCtx(flag string) string {
+	if flag != "" {
+		return flag
+	}
+	return readContextNotebook()
+}
+
+// requireNotebook returns an error if id is empty, with a helpful message.
+func requireNotebook(id string) error {
+	if id == "" {
+		return fmt.Errorf("notebook ID required: use -n <id> or run 'notebooklm notebook use <id>'")
+	}
+	return nil
 }
 
 // --------------------------------------------------------------------------
