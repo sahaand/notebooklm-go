@@ -1,27 +1,34 @@
 # notebooklm-go
 
-An unofficial Go client for [Google NotebookLM](https://notebooklm.google.com/), reverse-engineered from the Python library [notebooklm-py](https://github.com/teng-lin/notebooklm-py).
+An unofficial Go client for [Google NotebookLM](https://notebooklm.google.com/).
 
 > **Disclaimer:** This uses undocumented Google APIs that can change without notice. Use for prototypes, research, and personal projects — not production systems.
 
 ## Features
 
-- **Notebook management** — list, create, rename, delete, describe
-- **Source management** — add URLs, YouTube videos, PDFs, text, Google Drive files
-- **Artifact generation** — audio overviews, video overviews, reports, quizzes, flashcards, infographics, slide decks, data tables, mind maps
-- **Chat** — ask questions with citations, configure personas and response styles
-- **Sharing** — public/private links, user-level permissions
-- **Research** — fast and deep web research with source import
-- **Settings** — output language configuration
+* **Notebook management** — list, create, rename, delete, describe
 
----
+* **Source management** — add URLs, YouTube videos, PDFs, text, Google Drive files
+
+* **Artifact generation** — audio overviews, video overviews, reports, quizzes, flashcards, infographics, slide decks, data tables, mind maps
+
+* **Chat** — ask questions with citations, configure personas and response styles
+
+* **Sharing** — public/private links, user-level permissions
+
+* **Research** — fast and deep web research with source import
+
+* **Settings** — output language configuration
+
+***
 
 ## Installation
 
 ### Prerequisites
 
-- Go 1.22+
-- A Google account with access to [notebooklm.google.com](https://notebooklm.google.com/)
+* Go 1.22+
+
+* A Google account with access to [notebooklm.google.com](https://notebooklm.google.com/)
 
 ### Install the CLI
 
@@ -43,7 +50,7 @@ go build -o notebooklm ./cmd/notebooklm/
 go get github.com/saeedata/notebooklm-go
 ```
 
----
+***
 
 ## Authentication
 
@@ -52,21 +59,25 @@ Authentication requires exporting your Google session cookies from a browser. Th
 ### Method 1: Playwright storage state (recommended)
 
 1. Install Node.js and Playwright:
-   ```bash
-   npm install -g playwright
-   playwright install chromium
-   ```
 
-2. Export your session after logging in to NotebookLM:
-   ```bash
-   npx playwright codegen --save-storage ~/.notebooklm/storage_state.json https://notebooklm.google.com/
-   ```
-   Log in when the browser opens, then close it. The cookies are saved automatically.
+```bash
+npm install -g playwright
+playwright install chromium
+```
 
-3. Verify:
-   ```bash
-   notebooklm notebook list
-   ```
+1. Export your session after logging in to NotebookLM:
+
+```bash
+npx playwright codegen --save-storage ~/.notebooklm/storage_state.json https://notebooklm.google.com/
+```
+
+Log in when the browser opens, then close it. The cookies are saved automatically.
+
+1. Verify:
+
+```bash
+notebooklm notebook list
+```
 
 ### Method 2: Environment variable (CI/CD friendly)
 
@@ -83,7 +94,7 @@ notebooklm notebook list
 notebooklm --storage /path/to/storage_state.json notebook list
 ```
 
----
+***
 
 ## CLI Usage
 
@@ -189,7 +200,7 @@ notebooklm settings set-language ja
 --storage PATH  # Custom path to storage_state.json
 ```
 
----
+***
 
 ## Go Library Usage
 
@@ -256,7 +267,7 @@ func main() {
 }
 ```
 
----
+***
 
 ## Integration with Nym
 
@@ -403,7 +414,7 @@ export NOTEBOOKLM_AUTH_JSON="$(cat ~/.notebooklm/storage_state.json)"
 
 Or configure it in Nym's `.env` / config file.
 
----
+***
 
 ## Integration with Claude Code
 
@@ -456,13 +467,13 @@ Requires `NOTEBOOKLM_AUTH_JSON` env var or `~/.notebooklm/storage_state.json`.
 
 ### 3. Use in a Claude Code session
 
-```
+```text
 /notebooklm
 ```
 
 Or just start using it — Claude Code will invoke the `notebooklm` CLI directly via bash.
 
----
+***
 
 ## Integration with MCP (Model Context Protocol)
 
@@ -499,16 +510,16 @@ import (
 }
 ```
 
----
+***
 
 ## Environment Variables
 
-| Variable | Description |
-|----------|-------------|
-| `NOTEBOOKLM_AUTH_JSON` | Playwright storage state JSON (inline, no file needed) |
-| `NOTEBOOKLM_HOME` | Override default storage directory (default: `~/.notebooklm/`) |
+| Variable               | Description                                                    |
+| ---------------------- | -------------------------------------------------------------- |
+| `NOTEBOOKLM_AUTH_JSON` | Playwright storage state JSON (inline, no file needed)         |
+| `NOTEBOOKLM_HOME`      | Override default storage directory (default: `~/.notebooklm/`) |
 
----
+***
 
 ## API Reference
 
@@ -528,21 +539,23 @@ client := notebooklm.NewClient(auth)
 
 ### Sub-clients
 
-| Client | Methods |
-|--------|---------|
-| `client.Notebooks` | `List`, `Create`, `Get`, `Rename`, `Delete`, `GetDescription`, `GetMetadata`, `RemoveFromRecent` |
-| `client.Sources` | `List`, `Get`, `AddURL`, `AddText`, `AddFile`, `AddDrive`, `Delete`, `Rename`, `Refresh`, `WaitUntilReady` |
+| Client             | Methods                                                                                                                                                                                                 |
+| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `client.Notebooks` | `List`, `Create`, `Get`, `Rename`, `Delete`, `GetDescription`, `GetMetadata`, `RemoveFromRecent`                                                                                                        |
+| `client.Sources`   | `List`, `Get`, `AddURL`, `AddText`, `AddFile`, `AddDrive`, `Delete`, `Rename`, `Refresh`, `WaitUntilReady`                                                                                              |
 | `client.Artifacts` | `List`, `Get`, `Delete`, `Rename`, `GenerateAudio`, `GenerateVideo`, `GenerateReport`, `GenerateQuiz`, `GenerateInfographic`, `GenerateSlideDeck`, `GenerateDataTable`, `WaitForCompletion`, `Download` |
-| `client.Chat` | `Ask`, `Configure`, `SetMode`, `GetConversationTurns`, `GetLastConversationID` |
-| `client.Sharing` | `GetStatus`, `SetPublic`, `SetViewLevel`, `AddUser`, `UpdateUser`, `RemoveUser` |
-| `client.Notes` | `List`, `Create`, `Update`, `Delete`, `ListMindMaps`, `GenerateMindMap` |
-| `client.Research` | `StartFast`, `StartDeep`, `Poll`, `Import`, `WaitForCompletion` |
-| `client.Settings` | `Get`, `SetOutputLanguage` |
+| `client.Chat`      | `Ask`, `Configure`, `SetMode`, `GetConversationTurns`, `GetLastConversationID`                                                                                                                          |
+| `client.Sharing`   | `GetStatus`, `SetPublic`, `SetViewLevel`, `AddUser`, `UpdateUser`, `RemoveUser`                                                                                                                         |
+| `client.Notes`     | `List`, `Create`, `Update`, `Delete`, `ListMindMaps`, `GenerateMindMap`                                                                                                                                 |
+| `client.Research`  | `StartFast`, `StartDeep`, `Poll`, `Import`, `WaitForCompletion`                                                                                                                                         |
+| `client.Settings`  | `Get`, `SetOutputLanguage`                                                                                                                                                                              |
 
----
+***
 
 ## License
 
 MIT — see [LICENSE](LICENSE).
 
 Not affiliated with or endorsed by Google.
+
+⠀
