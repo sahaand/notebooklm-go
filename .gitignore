@@ -1,0 +1,17 @@
+# JetBrains IDEs
+*.idea/
+*.iml
+.idea/*
+!.idea/codeStyles/
+*.swp
+*.swo
+*~
+*.DS_Store
+
+# Node
+node_modules/
+npm-debug.log
+.eslintcache
+
+# Built binary
+/notebooklm

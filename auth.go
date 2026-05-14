@@ -179,7 +179,7 @@ func FetchTokens(ctx context.Context, cookies map[string]string) (csrfToken, ses
 }
 
 // NewAuthTokensFromStorage creates AuthTokens by loading storage and fetching live tokens.
-// If the storage file contains pre-extracted tokens (written by export_cookies.js) those are
+// If the storage file contains pre-extracted tokens (written by scripts/auth/export_cookies.js) those are
 // used directly, avoiding raw HTTP requests that Google blocks with CookieMismatch.
 func NewAuthTokensFromStorage(ctx context.Context, storagePath string) (*AuthTokens, error) {
 	cookies, csrf, sid, err := loadAuthAndTokens(storagePath)
